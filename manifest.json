@@ -1,0 +1,9 @@
+{
+  "name": "Libreta Cooperativa Digital",
+  "short_name": "Libreta Coop",
+  "description": "Una aplicación para que los asociados de la cooperativa lleven un registro digital y consecutivo de los pagos de sus ahorros, préstamos y el servicio de protección social.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#2563eb"
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Libreta Cooperativa Digital",
+  "description": "Una aplicación para que los asociados de la cooperativa lleven un registro digital y consecutivo de los pagos de sus ahorros, préstamos y el servicio de protección social. La aplicación maneja la conversión de bolívares a dólares para los saldos.",
+  "requestFramePermissions": []
+}
