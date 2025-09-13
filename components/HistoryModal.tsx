@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Transaction } from '../types';
+import { Member, Transaction } from '../types';
 import TransactionTable from './TransactionTable';
 import TransactionDetailModal from './TransactionDetailModal';
+import ShareReceiptModal from './ShareReceiptModal';
 
 interface HistoryModalProps {
     isOpen: boolean;
@@ -9,23 +10,34 @@ interface HistoryModalProps {
     transactions: Transaction[];
     ratesCache: Record<string, number>;
     onDeleteTransaction: (transactionId: string) => void;
+    member: Member;
 }
 
-const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactions, ratesCache, onDeleteTransaction }) => {
+const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactions, ratesCache, onDeleteTransaction, member }) => {
     const [selectedTxGroup, setSelectedTxGroup] = useState<Transaction[] | null>(null);
+    const [shareableTxGroup, setShareableTxGroup] = useState<Transaction[] | null>(null);
 
     if (!isOpen) return null;
 
     const handleRowClick = (clickedTx: Transaction) => {
       let txGroup: Transaction[];
-      // If a transaction has a reference, group all transactions with the same date and reference.
-      // Otherwise (e.g., withdrawals), treat it as a single-transaction group.
       if (clickedTx.reference) {
           txGroup = transactions.filter(tx => tx.date === clickedTx.date && tx.reference === clickedTx.reference);
       } else {
           txGroup = [clickedTx];
       }
       setSelectedTxGroup(txGroup.length > 0 ? txGroup : [clickedTx]);
+    };
+
+    const handleShareClick = (clickedTx: Transaction) => {
+        if (!clickedTx.reference) {
+            setShareableTxGroup([clickedTx]);
+            return;
+        }
+        const txGroup = transactions.filter(tx => tx.date === clickedTx.date && tx.reference === clickedTx.reference);
+        if (txGroup.length > 0) {
+            setShareableTxGroup(txGroup);
+        }
     };
 
     const handleCloseDetailModal = () => {
@@ -64,6 +76,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactio
                           ratesCache={ratesCache} 
                           onDelete={onDeleteTransaction}
                           onRowClick={handleRowClick}
+                          onShare={handleShareClick}
                         />
                     </div>
                 </div>
@@ -74,6 +87,15 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactio
                     onClose={handleCloseDetailModal}
                     transactionGroup={selectedTxGroup}
                     ratesCache={ratesCache}
+                />
+            )}
+            {shareableTxGroup && (
+                <ShareReceiptModal
+                    isOpen={!!shareableTxGroup}
+                    onClose={() => setShareableTxGroup(null)}
+                    transactions={shareableTxGroup}
+                    ratesCache={ratesCache}
+                    member={member}
                 />
             )}
         </>

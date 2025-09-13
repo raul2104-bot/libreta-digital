@@ -18,6 +18,7 @@ const InitialSetupForm: React.FC<InitialSetupFormProps> = ({ member, onComplete,
   
   const [lastProtectionPaymentDate, setLastProtectionPaymentDate] = useState('');
   const [monthlyProtectionFee, setMonthlyProtectionFee] = useState('3.00');
+  const [fundContribution, setFundContribution] = useState('0.50');
   const [contributionCertificate, setContributionCertificate] = useState('10.00');
 
 
@@ -30,6 +31,7 @@ const InitialSetupForm: React.FC<InitialSetupFormProps> = ({ member, onComplete,
       setLoanInstallment(member.loanInstallmentUsd?.toFixed(2) || '0.00');
       setLastProtectionPaymentDate(member.lastProtectionPaymentDate || '');
       setMonthlyProtectionFee(member.monthlyProtectionFeeUsd?.toFixed(2) || '3.00');
+      setFundContribution(member.fundContributionUsd?.toFixed(2) || '0.50');
       setContributionCertificate(member.contributionCertificateTotal?.toFixed(2) || '10.00');
     } else {
         const lastMonth = new Date();
@@ -37,6 +39,7 @@ const InitialSetupForm: React.FC<InitialSetupFormProps> = ({ member, onComplete,
         const year = lastMonth.getFullYear();
         const month = String(lastMonth.getMonth() + 1).padStart(2, '0');
         setLastProtectionPaymentDate(`${year}-${month}`);
+        setFundContribution(member.fundContributionUsd?.toFixed(2) || '0.50');
     }
   }, [isEditing, member]);
 
@@ -52,6 +55,7 @@ const InitialSetupForm: React.FC<InitialSetupFormProps> = ({ member, onComplete,
       loanInstallmentUsd: parseFloat(initialLoan) > 0 ? (parseFloat(loanInstallment) || 0) : undefined,
       lastProtectionPaymentDate: member.socialProtectionId ? lastProtectionPaymentDate : undefined,
       monthlyProtectionFeeUsd: member.socialProtectionId ? (parseFloat(monthlyProtectionFee) || 3) : undefined,
+      fundContributionUsd: member.socialProtectionId ? (parseFloat(fundContribution) || 0.5) : undefined,
       contributionCertificateTotal: parseFloat(contributionCertificate) || 0,
     };
     
@@ -140,6 +144,15 @@ const InitialSetupForm: React.FC<InitialSetupFormProps> = ({ member, onComplete,
                               value={monthlyProtectionFee} 
                               onChange={setMonthlyProtectionFee} 
                               placeholder="3,00"
+                          />
+                      </div>
+                      <div className="md:col-span-2">
+                          <label htmlFor="fundContribution" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Aporte a Fondo Especial ($)</label>
+                          <CurrencyInput 
+                              id="fundContribution" 
+                              value={fundContribution} 
+                              onChange={setFundContribution} 
+                              placeholder="0,50"
                           />
                       </div>
                   </div>

@@ -32,11 +32,10 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
     if (!val || parseFloat(val) === 0) {
       return '';
     }
-    // Convert '12.34' to '12,34' for display in es-VE locale
+    // Formats '1234.56' to '1.234,56' for es-VE locale, including thousand separators.
     return parseFloat(val).toLocaleString('es-VE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-      useGrouping: false,
     });
   };
 

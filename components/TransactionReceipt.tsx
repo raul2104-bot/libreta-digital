@@ -31,6 +31,7 @@ const TransactionReceipt = React.forwardRef<HTMLDivElement, TransactionReceiptPr
 
   const totalBs = transactions.reduce((sum, tx) => sum + tx.amountBs, 0);
   const totalUsd = rate > 0 ? totalBs / rate : 0;
+  const isWithdrawal = totalBs < 0;
   
   const categoryOrder = [
     TransactionCategory.LOAN,
@@ -52,7 +53,7 @@ const TransactionReceipt = React.forwardRef<HTMLDivElement, TransactionReceiptPr
   return (
     <div ref={ref} className="bg-white p-6 rounded-lg w-[350px] border border-gray-200 font-sans text-gray-800 relative overflow-hidden">
       <div className="text-center mb-4">
-        <h2 className="text-xl font-bold">Comprobante de Depósito</h2>
+        <h2 className="text-xl font-bold">{isWithdrawal ? 'Comprobante de Retiro' : 'Comprobante de Depósito'}</h2>
         <p className="text-sm text-gray-500">Libreta Cooperativa Digital</p>
         <p className="text-xs font-semibold text-gray-600 mt-1">Cooperativa de Servicios Múltiples La Candelaria</p>
       </div>
@@ -106,9 +107,9 @@ const TransactionReceipt = React.forwardRef<HTMLDivElement, TransactionReceiptPr
       
       <div className="space-y-2">
          <div className="flex justify-between font-bold text-lg">
-          <span className="text-gray-800">Total Pagado:</span>
+          <span className="text-gray-800">{isWithdrawal ? 'Total Retirado:' : 'Total Pagado:'}</span>
           <div className="text-right">
-             <span className="text-blue-600 block">{formatCurrency(totalUsd, 'usd')}</span>
+             <span className={`${isWithdrawal ? 'text-red-600' : 'text-blue-600'} block`}>{formatCurrency(totalUsd, 'usd')}</span>
              <span className="text-sm text-gray-500 font-medium">{formatCurrency(totalBs, 'bs')}</span>
           </div>
         </div>

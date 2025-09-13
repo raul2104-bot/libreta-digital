@@ -3,7 +3,7 @@ import { Member, Transaction, TransactionCategory } from './types';
 import TransactionForm from './components/TransactionForm';
 import DashboardCard from './components/DashboardCard';
 import RegistrationForm from './components/RegistrationForm';
-import { SavingsIcon, LoanIcon, ProtectionIcon, LogoutIcon, PlusCircleIcon, CsvIcon, WithdrawIcon, HistoryIcon, PencilIcon, ProtectionPlusIcon, CertificateIcon, CertificateCheckIcon } from './components/icons';
+import { SavingsIcon, LoanIcon, ProtectionIcon, LogoutIcon, PlusCircleIcon, CsvIcon, WithdrawIcon, HistoryIcon, PencilIcon, ProtectionPlusIcon, CertificateIcon, CertificateCheckIcon, HelpCircleIcon } from './components/icons';
 import PaymentAlert from './components/PaymentAlert';
 import InitialSetupForm from './components/InitialSetupForm';
 import NewLoanModal from './components/NewLoanModal';
@@ -13,6 +13,7 @@ import HistoryModal from './components/HistoryModal';
 import AddProtectionIdModal from './components/AddProtectionIdModal';
 import TransactionResult from './components/TransactionResult';
 import EmailCsvModal from './components/EmailCsvModal';
+import HelpModal from './components/HelpModal';
 
 const App: React.FC = () => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -27,6 +28,7 @@ const App: React.FC = () => {
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEmailCsvModalOpen, setIsEmailCsvModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isEditingSetup, setIsEditingSetup] = useState(false);
   const [lastAddedGroup, setLastAddedGroup] = useState<Transaction[] | null>(null);
   const [lastUsedRate, setLastUsedRate] = useState<number | null>(null);
@@ -200,14 +202,17 @@ const App: React.FC = () => {
         description: description || 'Retiro de ahorros'
     };
 
-    const transactionsWithIds: Transaction[] = [{
+    const transactionWithId: Transaction = {
       ...withdrawalTx,
       id: `tx${Date.now()}`,
       memberId: currentMember.id,
-    }];
+    };
+    
+    const newTransactionGroup = [transactionWithId];
 
-    setTransactions(prev => [...transactionsWithIds, ...prev]);
+    setTransactions(prev => [...newTransactionGroup, ...prev]);
     setRatesCache(prev => ({ ...prev, [date]: rate }));
+    setLastAddedGroup(newTransactionGroup); // Show receipt after withdrawal
     setIsWithdrawalModalOpen(false);
   };
   
@@ -423,8 +428,8 @@ const App: React.FC = () => {
   
   if (!currentMember) {
     const hasMembers = allMembers.length > 0;
-    if (authView === 'login' && hasMembers) {
-        return <LoginForm onLogin={handleLoginById} onNavigateToRegister={() => setAuthView('register')} />;
+    if (authView === 'login') {
+      return <LoginForm onLogin={handleLoginById} onNavigateToRegister={() => setAuthView('register')} allMembers={allMembers} />;
     }
     return <RegistrationForm onRegister={handleRegisterNewMember} onNavigateToLogin={() => setAuthView('login')} hasExistingMembers={hasMembers} />;
   }
@@ -480,13 +485,16 @@ const App: React.FC = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400">Cooperativa de Servicios Múltiples La Candelaria</p>
                 </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
                  <div className="text-right">
                     <p className="font-semibold text-gray-800 dark:text-gray-100">{currentMember.firstName} {currentMember.lastName}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">ID: {currentMember.savingsId}</p>
                  </div>
                  <button onClick={() => setIsEditingSetup(true)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Editar Saldos Iniciales">
                     <PencilIcon className="w-5 h-5" />
+                 </button>
+                 <button onClick={() => setIsHelpModalOpen(true)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Centro de Ayuda">
+                    <HelpCircleIcon className="w-6 h-6" />
                  </button>
                 <button onClick={handleLogout} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Cerrar sesión">
                     <LogoutIcon className="w-6 h-6" />
@@ -569,8 +577,9 @@ const App: React.FC = () => {
       <NewLoanModal isOpen={isNewLoanModalOpen} onClose={() => setIsNewLoanModalOpen(false)} onSave={handleAddNewLoan} />
       <AddProtectionIdModal isOpen={isAddProtectionIdModalOpen} onClose={() => setIsAddProtectionIdModalOpen(false)} onSave={handleAddProtectionId} />
       <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setIsWithdrawalModalOpen(false)} onSave={handleWithdrawal} currentBalance={dashboardData.savingsUsd} />
-      <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransaction={handleDeleteTransaction} />
+      {currentMember && <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransaction={handleDeleteTransaction} member={currentMember} />}
       {currentMember && <EmailCsvModal isOpen={isEmailCsvModalOpen} onClose={() => setIsEmailCsvModalOpen(false)} member={currentMember} transactions={transactions} ratesCache={ratesCache} />}
+      <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
     </div>
   );
 };

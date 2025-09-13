@@ -1,15 +1,16 @@
 import React from 'react';
 import { Transaction, TransactionCategory } from '../types';
-import { CertificateIcon, FundIcon, LoanIcon, ProtectionIcon, SavingsIcon, TrashIcon } from './icons';
+import { CertificateIcon, FundIcon, LoanIcon, ProtectionIcon, SavingsIcon, ShareIcon, TrashIcon } from './icons';
 
 interface TransactionTableProps {
   transactions: Transaction[];
   ratesCache: Record<string, number>;
   onDelete?: (transactionId: string) => void;
   onRowClick?: (transaction: Transaction) => void;
+  onShare?: (transaction: Transaction) => void;
 }
 
-const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, ratesCache, onDelete, onRowClick }) => {
+const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, ratesCache, onDelete, onRowClick, onShare }) => {
   const formatCurrency = (amount: number, currency: 'bs' | 'usd') => {
     return new Intl.NumberFormat('es-VE', {
       style: 'currency',
@@ -75,7 +76,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, rates
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Referencia</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto (Bs)</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto ($)</th>
-              {onDelete && <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>}
+              {(onDelete || onShare) && <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>}
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -109,20 +110,34 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, rates
                           : <span className="text-gray-500 dark:text-gray-400">-</span>
                         }
                       </td>
-                      {onDelete && (
+                      {(onDelete || onShare) && (
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                                onClick={(e) => {
-                                  if(onDelete) {
-                                    e.stopPropagation();
-                                    onDelete(tx.id);
-                                  }
-                                }}
-                                className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-500 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
-                                aria-label={`Eliminar transacción ${tx.id}`}
-                            >
-                                <TrashIcon className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center justify-end space-x-1">
+                                {tx.reference && onShare && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onShare(tx);
+                                        }}
+                                        className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-500 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                        aria-label={`Compartir comprobante de la transacción ${tx.id}`}
+                                    >
+                                        <ShareIcon className="w-5 h-5" />
+                                    </button>
+                                )}
+                                {onDelete && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete(tx.id);
+                                        }}
+                                        className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-500 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                                        aria-label={`Eliminar transacción ${tx.id}`}
+                                    >
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
                         </td>
                       )}
                     </tr>
@@ -130,7 +145,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, rates
                 })
             ) : (
                 <tr>
-                    <td colSpan={onDelete ? 7 : 6} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={onDelete || onShare ? 7 : 6} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                         No hay transacciones registradas.
                     </td>
                 </tr>
