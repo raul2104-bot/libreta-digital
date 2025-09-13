@@ -58,7 +58,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                     <div className="space-y-4">
                         <FAQItem question="Uso General">
                             <p><strong>¿Cómo me registro?</strong></p>
-                            <p>En la pantalla de inicio, seleccione "No tengo una cuenta". Complete su nombre, apellido, ID de ahorros (su número de asociado) y, opcionalmente, su ID de protección social. Luego, complete la configuración inicial con sus saldos actuales. <strong>Para llevar varias cuentas en la misma libreta</strong>, simplemente cierre la sesión actual usando el ícono de 'Cerrar Sesión'. Esto lo llevará de vuelta a la pantalla de inicio, donde podrá ingresar con el ID de otra cuenta o registrar una nueva.</p>
+                            <p>En la pantalla de inicio, seleccione "No tengo una cuenta". Complete su nombre, apellido, ID de ahorros (su número de asociado) y, opcionalmente, su ID de protección social. Luego, complete la configuración inicial con sus saldos actuales.</p>
                             <p><strong>¿Para qué sirve la tasa de cambio?</strong></p>
                             <p>La tasa de cambio se usa para convertir los montos de sus depósitos en Bolívares (Bs) a Dólares ($). Esto permite mantener todos sus saldos (ahorros, préstamos) en un valor de referencia estable. Es crucial ingresarla correctamente en cada transacción.</p>
                              <p><strong>¿Cómo puedo exportar mi historial?</strong></p>
@@ -67,7 +67,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
                         <FAQItem question="Protección Social">
                             <p><strong>¿Qué es la Protección Social y el Fondo Especial?</strong></p>
-                            <p>La Protección Social es un plan de atención funeraria solidario ofrecido por la cooperativa. Este plan brinda cobertura completa al asociado titular y a su grupo familiar primario, que incluye: <strong>padres, cónyuge (esposo/a) e hijos</strong>. El pago mensual asegura la tranquilidad de su familia en momentos difíciles. Al registrar un pago, se distribuye automáticamente el monto correspondiente a la cuota del servicio y al aporte del Fondo Especial, según lo configurado.</p>
+                            <p>La Protección Social es un servicio solidario ofrecido por la cooperativa. Al registrar un pago, se distribuye automáticamente el monto correspondiente a la cuota del servicio y al aporte del Fondo Especial, según lo configurado.</p>
                             <p><strong>¿Cómo se calcula el pago?</strong></p>
                             <p>Puede pagar varios meses a la vez. Simplemente seleccione "Pagar Protección Social" e indique la cantidad de meses. El sistema calculará el total a pagar (Cuota de Protección x Meses + Aporte a Fondo x Meses).</p>
                         </FAQItem>
