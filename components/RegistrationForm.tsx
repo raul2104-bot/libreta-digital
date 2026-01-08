@@ -11,7 +11,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, onNavig
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [savingsId, setSavingsId] = useState('');
-  const [socialProtectionId, setSocialProtectionId] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -27,7 +26,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, onNavig
       firstName,
       lastName,
       savingsId: parseInt(savingsId, 10),
-      ...(socialProtectionId && { socialProtectionId }),
       setupComplete: false,
       monthlyProtectionFeeUsd: 3,
       fundContributionUsd: 0.5,
@@ -76,18 +74,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, onNavig
                 className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 dark:text-white no-spinners"
               />
             </div>
-            <div>
-              <label htmlFor="socialProtectionId" className="block text-sm font-medium text-gray-700 dark:text-gray-300">ID de Protección Social (Opcional)</label>
-              <input 
-                type="text" 
-                id="socialProtectionId" 
-                value={socialProtectionId} 
-                onChange={e => setSocialProtectionId(e.target.value)}
-                maxLength={8}
-                className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 dark:text-white"
-              />
-            </div>
-            
+
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             
             <div className="flex justify-center pt-2">

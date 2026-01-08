@@ -5,10 +5,11 @@ interface TransactionReceiptProps {
   transactions: Transaction[] | null;
   ratesCache: Record<string, number>;
   member: Member | null;
+  lastProtectionPaymentDisplayAfterTx?: string;
 }
 
 const TransactionReceipt = React.forwardRef<HTMLDivElement, TransactionReceiptProps>(
-  ({ transactions, ratesCache, member }, ref) => {
+  ({ transactions, ratesCache, member, lastProtectionPaymentDisplayAfterTx }, ref) => {
   
   if (!transactions || transactions.length === 0 || !member) {
     return (
@@ -95,6 +96,9 @@ const TransactionReceipt = React.forwardRef<HTMLDivElement, TransactionReceiptPr
                             <span className="text-xs text-gray-500">{formatCurrency(tx.amountBs, 'bs')}</span>
                         </div>
                     </div>
+                     {tx.category === TransactionCategory.SOCIAL_PROTECTION && lastProtectionPaymentDisplayAfterTx && (
+                        <p className="text-xs text-gray-500 pl-2 font-semibold">- Válido hasta: {lastProtectionPaymentDisplayAfterTx}</p>
+                    )}
                     {tx.description && !tx.description.startsWith('Aporte a Fondo') && !tx.description.startsWith('Pago de') && !tx.description.startsWith('Abono a') && (
                       <p className="text-xs text-gray-500 pl-2">- {tx.description}</p>
                     )}

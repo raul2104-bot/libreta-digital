@@ -37,3 +37,10 @@ export interface Member {
   loanInstallmentUsd?: number;
   lastProtectionPaymentDate?: string; // YYYY-MM format
 }
+
+export interface AppNotification {
+  id: string;
+  message: string;
+  type: 'loan' | 'protection';
+  level: 'warning' | 'error';
+}

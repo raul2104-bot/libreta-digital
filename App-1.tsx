@@ -182,9 +182,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteTransaction = (transactionId: string) => {
-    if (window.confirm('¿Está seguro de que desea eliminar esta transacción? Esta acción no se puede deshacer.')) {
-        setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+  // FIX: Renamed function to handleDeleteTransactionGroup and updated signature and logic to handle an array of transactions.
+  const handleDeleteTransactionGroup = (groupToDelete: Transaction[]) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta operación completa? Esta acción no se puede deshacer.')) {
+      const groupIds = new Set(groupToDelete.map(tx => tx.id));
+      setTransactions(prev => prev.filter(tx => !groupIds.has(tx.id)));
     }
   };
 
@@ -463,6 +465,8 @@ const App: React.FC = () => {
         onAddTransactions={handleAddTransactions}
         certificatePendingAmount={certificateData.pending}
         initialRate={lastUsedRate}
+        // FIX: Added missing loanBalanceUsd prop
+        loanBalanceUsd={dashboardData.loanBalanceUsd}
       />
     );
   };
@@ -571,7 +575,8 @@ const App: React.FC = () => {
       <AddProtectionIdModal isOpen={isAddProtectionIdModalOpen} onClose={() => setIsAddProtectionIdModalOpen(false)} onSave={handleAddProtectionId} />
       <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setIsWithdrawalModalOpen(false)} onSave={handleWithdrawal} currentBalance={dashboardData.savingsUsd} />
       {/* FIX: Add member prop and conditionally render to prevent passing null */}
-      {currentMember && <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransaction={handleDeleteTransaction} member={currentMember} />}
+      {/* FIX: Changed prop from onDeleteTransaction to onDeleteTransactionGroup and passed the correct handler. */}
+      {currentMember && <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransactionGroup={handleDeleteTransactionGroup} member={currentMember} />}
       {currentMember && <EmailCsvModal isOpen={isEmailCsvModalOpen} onClose={() => setIsEmailCsvModalOpen(false)} member={currentMember} transactions={transactions} ratesCache={ratesCache} />}
     </div>
   );

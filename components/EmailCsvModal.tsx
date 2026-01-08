@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Member, Transaction } from '../types';
+import { Member, Transaction, TransactionCategory } from '../types';
 import { MailIcon, DownloadIcon } from './icons';
 
 interface EmailCsvModalProps {
@@ -11,36 +11,84 @@ interface EmailCsvModalProps {
 }
 
 const EMAIL_STORAGE_KEY = 'coopLastExportEmail';
+const DEFAULT_COOP_EMAIL = 'candelariacooperativa31@gmail.com';
 
 const EmailCsvModal: React.FC<EmailCsvModalProps> = ({ isOpen, onClose, member, transactions, ratesCache }) => {
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(DEFAULT_COOP_EMAIL);
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             const savedEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
-            setEmail(savedEmail || 'candelariacooperativa@gmail.com');
+            setEmail(savedEmail || DEFAULT_COOP_EMAIL);
         }
     }, [isOpen]);
 
     const generateCsvContent = (): string => {
-        const headers = ["ID Transacción", "Fecha", "Categoría", "Descripción", "Referencia", "Monto (Bs)", "Tasa ($)", "Monto ($)"];
+        const headers = [
+            "Fecha", "Nombre", "Apellido", "ID de Ahorros",
+            "Abono a Ahorros ($)", "Saldo de Ahorros ($)",
+            "Abono a Prestamo ($)", "Saldo de Prestamo ($)",
+            "Tasa del Día", "Abono a Certificado ($)", "Referencia",
+            "Monto Fondo Especial (Bs)", "ID Proteccion Social",
+            "Meses Pagados Prot. Soc.", "Monto Prot. Soc. (Bs)"
+        ];
         const csvRows = [headers.join(',')];
 
         const sortedTxs = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+        let runningSavingsBalanceUsd = member.initialSavingsUsd || 0;
+        let runningLoanBalanceUsd = member.initialLoanUsd || 0;
+
         for (const tx of sortedTxs) {
             const rate = ratesCache[tx.date] || 0;
-            const amountUsd = rate > 0 ? (tx.amountBs / rate).toFixed(2) : '0.00';
+            const amountUsd = rate > 0 ? tx.amountBs / rate : 0;
+
+            let savingsDeposit = 0;
+            let loanPayment = 0;
+            let certificatePayment = 0;
+            let fundAmountBs = 0;
+            let protectionAmountBs = 0;
+            let protectionMonthsPaid = 0;
+
+            switch (tx.category) {
+                case TransactionCategory.SAVINGS:
+                    runningSavingsBalanceUsd += amountUsd;
+                    // Only record positive amounts as deposits, withdrawals are reflected in the balance.
+                    if (amountUsd > 0) savingsDeposit = amountUsd;
+                    break;
+                case TransactionCategory.LOAN:
+                    runningLoanBalanceUsd -= amountUsd;
+                    loanPayment = amountUsd;
+                    break;
+                case TransactionCategory.CONTRIBUTION_CERTIFICATE:
+                    certificatePayment = amountUsd;
+                    break;
+                case TransactionCategory.FUND:
+                    fundAmountBs = tx.amountBs;
+                    break;
+                case TransactionCategory.SOCIAL_PROTECTION:
+                    protectionAmountBs = tx.amountBs;
+                    protectionMonthsPaid = tx.monthsPaid || 0;
+                    break;
+            }
+
             const row = [
-                tx.id,
                 tx.date,
-                `"${tx.category}"`,
-                `"${(tx.description || '').replace(/"/g, '""')}"`,
+                `"${member.firstName}"`,
+                `"${member.lastName}"`,
+                member.savingsId,
+                savingsDeposit.toFixed(2),
+                runningSavingsBalanceUsd.toFixed(2),
+                loanPayment.toFixed(2),
+                runningLoanBalanceUsd.toFixed(2),
+                rate.toFixed(2),
+                certificatePayment.toFixed(2),
                 `"${tx.reference || ''}"`,
-                tx.amountBs,
-                rate,
-                amountUsd
+                fundAmountBs,
+                `"${member.socialProtectionId || ''}"`,
+                protectionMonthsPaid,
+                protectionAmountBs
             ].join(',');
             csvRows.push(row);
         }
@@ -76,7 +124,7 @@ const EmailCsvModal: React.FC<EmailCsvModalProps> = ({ isOpen, onClose, member, 
             localStorage.setItem(EMAIL_STORAGE_KEY, email);
             const subject = `Historial de Transacciones - ${member.firstName} ${member.lastName} (ID: ${member.savingsId})`;
             const csvContent = generateCsvContent();
-            const body = `Hola,\n\nEste es el historial de transacciones en formato CSV para el asociado ${member.firstName} ${member.lastName}.\n\n(Puede copiar el siguiente texto y guardarlo como un archivo .csv)\n\n--- INICIO DE DATOS CSV ---\n\n${csvContent}\n\n--- FIN DE DATOS CSV ---`;
+            const body = `Hola,\n\nAdjunto el historial de transacciones en formato CSV para el asociado ${member.firstName} ${member.lastName}.\n\n(Puede copiar el siguiente texto y guardarlo como un archivo .csv)\n\n--- INICIO DE DATOS CSV ---\n\n${csvContent}\n\n--- FIN DE DATOS CSV ---`;
 
             const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
             window.location.href = mailtoLink;
@@ -102,7 +150,7 @@ const EmailCsvModal: React.FC<EmailCsvModalProps> = ({ isOpen, onClose, member, 
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-8 transform transition-all"
                 onClick={e => e.stopPropagation()}
             >
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Exportar Historial</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Exportar Historial Detallado</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Elija cómo desea exportar el historial de transacciones.</p>
 
                 <div className="space-y-6">

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Member, Transaction } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Member, Transaction, TransactionCategory } from '../types';
 import TransactionTable from './TransactionTable';
-import TransactionDetailModal from './TransactionDetailModal';
 import ShareReceiptModal from './ShareReceiptModal';
 
 interface HistoryModalProps {
@@ -9,41 +8,63 @@ interface HistoryModalProps {
     onClose: () => void;
     transactions: Transaction[];
     ratesCache: Record<string, number>;
-    onDeleteTransaction: (transactionId: string) => void;
+    onDeleteTransactionGroup: (transactionGroup: Transaction[]) => void;
+    onEditTransaction?: (transactionGroup: Transaction[]) => void;
     member: Member;
 }
 
-const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactions, ratesCache, onDeleteTransaction, member }) => {
-    const [selectedTxGroup, setSelectedTxGroup] = useState<Transaction[] | null>(null);
-    const [shareableTxGroup, setShareableTxGroup] = useState<Transaction[] | null>(null);
+const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactions, ratesCache, onDeleteTransactionGroup, onEditTransaction, member }) => {
+    const [shareableTxGroupInfo, setShareableTxGroupInfo] = useState<{ transactions: Transaction[], lastProtectionPaymentDisplayAfterTx?: string } | null>(null);
+
+    const groupedTransactions = useMemo(() => {
+        const groups: { [key: string]: Transaction[] } = {};
+        
+        const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.id.localeCompare(b.id));
+
+        sorted.forEach(tx => {
+            const key = (tx.reference && tx.reference !== '-') ? `${tx.date}-${tx.reference}` : tx.id;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(tx);
+        });
+
+        return Object.values(groups).sort((a, b) => {
+            const dateA = new Date(a[0].date).getTime();
+            const dateB = new Date(b[0].date).getTime();
+            return dateB - dateA;
+        });
+    }, [transactions]);
 
     if (!isOpen) return null;
 
-    const handleRowClick = (clickedTx: Transaction) => {
-      let txGroup: Transaction[];
-      if (clickedTx.reference) {
-          txGroup = transactions.filter(tx => tx.date === clickedTx.date && tx.reference === clickedTx.reference);
-      } else {
-          txGroup = [clickedTx];
-      }
-      setSelectedTxGroup(txGroup.length > 0 ? txGroup : [clickedTx]);
-    };
+    const handleShareClick = (group: Transaction[]) => {
+        if (group.length > 0) {
+            const socialProtectionTxInGroup = group.find(tx => tx.category === TransactionCategory.SOCIAL_PROTECTION);
+            let newLastPaidMonthDisplay: string | undefined = undefined;
 
-    const handleShareClick = (clickedTx: Transaction) => {
-        if (!clickedTx.reference) {
-            setShareableTxGroup([clickedTx]);
-            return;
+            if (socialProtectionTxInGroup && member.lastProtectionPaymentDate) {
+                const sortedTxs = [...transactions].sort((a, b) => a.id.localeCompare(b.id));
+                let monthsPaidSoFar = 0;
+                const targetTxId = socialProtectionTxInGroup.id;
+
+                for (const tx of sortedTxs) {
+                    if (tx.category === TransactionCategory.SOCIAL_PROTECTION && tx.monthsPaid) {
+                        monthsPaidSoFar += tx.monthsPaid;
+                    }
+                    if (tx.id === targetTxId) break;
+                }
+
+                const [initialYear, initialMonth] = member.lastProtectionPaymentDate.split('-').map(Number);
+                const lastPaidDate = new Date(initialYear, initialMonth - 1, 1);
+                lastPaidDate.setMonth(lastPaidDate.getMonth() + monthsPaidSoFar);
+                
+                const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                newLastPaidMonthDisplay = `${monthNames[lastPaidDate.getMonth()]} ${lastPaidDate.getFullYear()}`;
+            }
+            setShareableTxGroupInfo({ transactions: group, lastProtectionPaymentDisplayAfterTx: newLastPaidMonthDisplay });
         }
-        const txGroup = transactions.filter(tx => tx.date === clickedTx.date && tx.reference === clickedTx.reference);
-        if (txGroup.length > 0) {
-            setShareableTxGroup(txGroup);
-        }
     };
-
-    const handleCloseDetailModal = () => {
-        setSelectedTxGroup(null);
-    };
-
 
     return (
         <>
@@ -72,30 +93,23 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, transactio
                     </div>
                     <div className="flex-grow overflow-y-auto">
                         <TransactionTable 
-                          transactions={transactions} 
+                          transactionGroups={groupedTransactions}
                           ratesCache={ratesCache} 
-                          onDelete={onDeleteTransaction}
-                          onRowClick={handleRowClick}
-                          onShare={handleShareClick}
+                          onDeleteGroup={onDeleteTransactionGroup}
+                          onShareGroup={handleShareClick}
+                          onEditGroup={onEditTransaction}
                         />
                     </div>
                 </div>
             </div>
-            {selectedTxGroup && (
-                <TransactionDetailModal
-                    isOpen={!!selectedTxGroup}
-                    onClose={handleCloseDetailModal}
-                    transactionGroup={selectedTxGroup}
-                    ratesCache={ratesCache}
-                />
-            )}
-            {shareableTxGroup && (
+            {shareableTxGroupInfo && (
                 <ShareReceiptModal
-                    isOpen={!!shareableTxGroup}
-                    onClose={() => setShareableTxGroup(null)}
-                    transactions={shareableTxGroup}
+                    isOpen={!!shareableTxGroupInfo}
+                    onClose={() => setShareableTxGroupInfo(null)}
+                    transactions={shareableTxGroupInfo.transactions}
                     ratesCache={ratesCache}
                     member={member}
+                    lastProtectionPaymentDisplayAfterTx={shareableTxGroupInfo.lastProtectionPaymentDisplayAfterTx}
                 />
             )}
         </>

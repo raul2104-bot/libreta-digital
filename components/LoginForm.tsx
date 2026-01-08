@@ -5,10 +5,9 @@ interface LoginFormProps {
   onLogin: (savingsId: number) => boolean;
   onNavigateToRegister: () => void;
   isShareLogin?: boolean;
-  allMembers?: Member[];
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onNavigateToRegister, isShareLogin, allMembers }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onNavigateToRegister, isShareLogin }) => {
   const [savingsId, setSavingsId] = useState('');
   const [error, setError] = useState('');
 
@@ -81,32 +80,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onNavigateToRegis
             </button>
           </div>
         </div>
-        
-        {allMembers && allMembers.length > 0 && !isShareLogin && (
-          <div className="mt-6 animate-fade-in w-full">
-            <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-300 dark:border-gray-600" /></div>
-                <div className="relative flex justify-center"><span className="bg-gray-100 dark:bg-gray-900 px-3 text-base font-medium text-gray-700 dark:text-gray-300">o ingrese rápidamente</span></div>
-            </div>
-            <div className="space-y-3 max-h-60 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl shadow-inner">
-                {allMembers.map(member => (
-                    <button
-                        key={member.id}
-                        onClick={() => onLogin(member.id)}
-                        className="w-full flex items-center justify-between text-left p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02]"
-                        aria-label={`Ingresar como ${member.firstName} ${member.lastName}`}
-                    >
-                        <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">{member.firstName} {member.lastName}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">ID de Ahorros: {member.id}</p>
-                        </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </button>
-                ))}
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );

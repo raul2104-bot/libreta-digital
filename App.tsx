@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Member, Transaction, TransactionCategory } from './types';
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Member, Transaction, TransactionCategory, AppNotification } from './types';
 import TransactionForm from './components/TransactionForm';
 import DashboardCard from './components/DashboardCard';
 import RegistrationForm from './components/RegistrationForm';
-import { SavingsIcon, LoanIcon, ProtectionIcon, LogoutIcon, PlusCircleIcon, CsvIcon, WithdrawIcon, HistoryIcon, PencilIcon, ProtectionPlusIcon, CertificateIcon, CertificateCheckIcon, HelpCircleIcon } from './components/icons';
+import { SavingsIcon, LoanIcon, ProtectionIcon, LogoutIcon, PlusCircleIcon, CsvIcon, WithdrawIcon, HistoryIcon, PencilIcon, ProtectionPlusIcon, CertificateIcon, CertificateCheckIcon, HelpCircleIcon, ChevronDownIcon, UserPlusIcon, UsersIcon, BellIcon } from './components/icons';
 import PaymentAlert from './components/PaymentAlert';
 import InitialSetupForm from './components/InitialSetupForm';
 import NewLoanModal from './components/NewLoanModal';
@@ -14,6 +15,7 @@ import AddProtectionIdModal from './components/AddProtectionIdModal';
 import TransactionResult from './components/TransactionResult';
 import EmailCsvModal from './components/EmailCsvModal';
 import HelpModal from './components/HelpModal';
+import ManageMembersModal from './components/ManageMembersModal';
 
 const App: React.FC = () => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -29,9 +31,18 @@ const App: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEmailCsvModalOpen, setIsEmailCsvModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isManageMembersModalOpen, setIsManageMembersModalOpen] = useState(false);
   const [isEditingSetup, setIsEditingSetup] = useState(false);
   const [lastAddedGroup, setLastAddedGroup] = useState<Transaction[] | null>(null);
   const [lastUsedRate, setLastUsedRate] = useState<number | null>(null);
+  const [isSwitchAccountOpen, setIsSwitchAccountOpen] = useState(false);
+  const switchAccountRef = useRef<HTMLDivElement>(null);
+  const [editingTxGroup, setEditingTxGroup] = useState<Transaction[] | null>(null);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
 
   // Load data from localStorage on initial render
@@ -98,6 +109,22 @@ const App: React.FC = () => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
+  // Click outside handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (switchAccountRef.current && !switchAccountRef.current.contains(event.target as Node)) {
+        setIsSwitchAccountOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [switchAccountRef, notificationsRef]);
+
   const toggleDarkMode = () => {
     setIsDarkMode(prev => {
         const newIsDark = !prev;
@@ -113,6 +140,7 @@ const App: React.FC = () => {
         localStorage.setItem('currentCoopMemberId', String(savingsId));
         const savedTransactions = localStorage.getItem(`coopTransactions_${memberToLogin.id}`);
         setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+        setLastAddedGroup(null);
         
         return true;
     }
@@ -135,6 +163,13 @@ const App: React.FC = () => {
     setCurrentMember(null);
     setTransactions([]);
     setAuthView('login');
+  };
+
+  const handleNavigateToRegister = () => {
+    localStorage.removeItem('currentCoopMemberId');
+    setCurrentMember(null);
+    setTransactions([]);
+    setAuthView('register');
   };
 
   const handleBackFromSetup = () => {
@@ -182,10 +217,47 @@ const App: React.FC = () => {
         setLastAddedGroup(transactionsWithIds);
     }
   };
+  
+  const handleStartEditTransaction = (transactionGroup: Transaction[]) => {
+    setEditingTxGroup(transactionGroup);
+    setIsHistoryModalOpen(false);
+  };
 
-  const handleDeleteTransaction = (transactionId: string) => {
-    if (window.confirm('¿Está seguro de que desea eliminar esta transacción? Esta acción no se puede deshacer.')) {
-        setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+  const handleCancelEdit = () => {
+    setEditingTxGroup(null);
+  };
+  
+  const handleUpdateTransactions = (oldGroup: Transaction[], newTxs: Omit<Transaction, 'id' | 'memberId'>[], rate: number) => {
+    if (!currentMember) return;
+    
+    const oldGroupIds = new Set(oldGroup.map(tx => tx.id));
+    
+    const transactionsWithIds: Transaction[] = newTxs.map((tx, index) => ({
+      ...tx,
+      id: `tx-edited-${Date.now() + index}`,
+      memberId: currentMember.id,
+    }));
+
+    setTransactions(prev => {
+        const filtered = prev.filter(tx => !oldGroupIds.has(tx.id));
+        return [...transactionsWithIds, ...filtered];
+    });
+
+    if (newTxs.length > 0) {
+        const date = newTxs[0].date;
+        setRatesCache(prev => ({...prev, [date]: rate }));
+        setLastUsedRate(rate);
+        localStorage.setItem('coopLastUsedRate', String(rate));
+        setLastAddedGroup(transactionsWithIds);
+    }
+    
+    setEditingTxGroup(null);
+  };
+
+  const handleDeleteTransactionGroup = (groupToDelete: Transaction[]) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta operación completa? Esta acción no se puede deshacer.')) {
+      const groupIds = new Set(groupToDelete.map(tx => tx.id));
+      setTransactions(prev => prev.filter(tx => !groupIds.has(tx.id)));
     }
   };
 
@@ -255,6 +327,61 @@ const App: React.FC = () => {
     setCurrentMember(updatedMember);
     setIsAddProtectionIdModalOpen(false);
   };
+
+    const handleUpdateMember = (originalId: number, updatedData: { firstName: string; lastName: string; savingsId: number }): { success: boolean; error?: string } => {
+        const newId = updatedData.savingsId;
+
+        if (newId !== originalId && allMembers.some(m => m.id === newId)) {
+            return { success: false, error: 'El nuevo ID de Ahorros ya está en uso.' };
+        }
+
+        let memberToUpdate: Member | undefined;
+        const updatedMembers = allMembers.map(m => {
+            if (m.id === originalId) {
+                memberToUpdate = { ...m, firstName: updatedData.firstName, lastName: updatedData.lastName, id: newId, savingsId: newId };
+                return memberToUpdate;
+            }
+            return m;
+        });
+        setAllMembers(updatedMembers);
+
+        if (newId !== originalId) {
+            const oldTxKey = `coopTransactions_${originalId}`;
+            const newTxKey = `coopTransactions_${newId}`;
+            const transactionsJson = localStorage.getItem(oldTxKey);
+            if (transactionsJson) {
+                const memberTransactions: Transaction[] = JSON.parse(transactionsJson);
+                const updatedTransactions = memberTransactions.map(tx => ({ ...tx, memberId: newId }));
+                localStorage.setItem(newTxKey, JSON.stringify(updatedTransactions));
+                localStorage.removeItem(oldTxKey);
+            }
+        }
+        
+        if (currentMember && currentMember.id === originalId) {
+            setCurrentMember(memberToUpdate!);
+            localStorage.setItem('currentCoopMemberId', String(newId));
+             if(newId !== originalId) {
+                const newTransactionsJson = localStorage.getItem(`coopTransactions_${newId}`);
+                setTransactions(newTransactionsJson ? JSON.parse(newTransactionsJson) : []);
+            }
+        }
+        
+        return { success: true };
+    };
+
+    const handleDeleteMember = (memberId: number) => {
+        if (!window.confirm(`¿Está seguro de que desea eliminar a este asociado? Se borrarán TODAS sus transacciones. Esta acción es irreversible.`)) {
+            return;
+        }
+
+        setAllMembers(prev => prev.filter(m => m.id !== memberId));
+        localStorage.removeItem(`coopTransactions_${memberId}`);
+
+        if (currentMember && currentMember.id === memberId) {
+            handleLogout();
+        }
+    };
+
 
   const calculateTotalUsd = (categories: TransactionCategory[]) =>
       transactions
@@ -330,6 +457,27 @@ const App: React.FC = () => {
     const pending = Math.max(0, total - paid);
     return { paid, pending, total };
   }, [transactions, ratesCache, currentMember]);
+
+    const adjustedBalances = useMemo(() => {
+        if (!editingTxGroup || !currentMember) {
+            return { adjustedLoan: dashboardData.loanBalanceUsd, adjustedCert: certificateData.pending };
+        }
+
+        const rate = ratesCache[editingTxGroup[0].date] || 1;
+        
+        const loanPaymentInGroup = editingTxGroup
+            .find(tx => tx.category === TransactionCategory.LOAN)?.amountBs || 0;
+        const loanPaymentUsdInGroup = rate > 0 ? loanPaymentInGroup / rate : 0;
+        
+        const certPaymentInGroup = editingTxGroup
+            .find(tx => tx.category === TransactionCategory.CONTRIBUTION_CERTIFICATE)?.amountBs || 0;
+        const certPaymentUsdInGroup = rate > 0 ? certPaymentInGroup / rate : 0;
+            
+        return {
+            adjustedLoan: dashboardData.loanBalanceUsd + loanPaymentUsdInGroup,
+            adjustedCert: certificateData.pending + certPaymentUsdInGroup
+        };
+    }, [editingTxGroup, dashboardData.loanBalanceUsd, certificateData.pending, ratesCache, currentMember]);
 
   const lastProtectionPaymentDate = useMemo(() => {
     if (!currentMember?.socialProtectionId?.trim() || !currentMember.lastProtectionPaymentDate) {
@@ -425,11 +573,78 @@ const App: React.FC = () => {
     return { status: 'ok' as const };
 }, [transactions, currentMember, dashboardData.loanBalanceUsd]);
 
+  // Notification generation
+  useEffect(() => {
+    if (!currentMember) return;
+
+    const dismissedNotifsKey = `dismissedNotifications_${currentMember.id}`;
+    const dismissedIds: string[] = JSON.parse(localStorage.getItem(dismissedNotifsKey) || '[]');
+
+    const newNotifications: AppNotification[] = [];
+
+    // Loan notifications
+    if (loanPaymentStatus.status === 'due_soon' || loanPaymentStatus.status === 'overdue') {
+        const id = `loan-${loanPaymentStatus.date}`;
+        if (!dismissedIds.includes(id)) {
+            const message = loanPaymentStatus.status === 'due_soon'
+                ? `Su cuota del préstamo de ${loanPaymentStatus.amount?.toLocaleString('es-VE', {style:'currency', currency:'USD'})} vence el ${loanPaymentStatus.date}.`
+                : `Su cuota del préstamo de ${loanPaymentStatus.amount?.toLocaleString('es-VE', {style:'currency', currency:'USD'})} venció el ${loanPaymentStatus.date}.`;
+            newNotifications.push({
+                id,
+                message,
+                type: 'loan',
+                level: loanPaymentStatus.status === 'overdue' ? 'error' : 'warning',
+            });
+        }
+    }
+
+    // Protection notifications
+    if (protectionPaymentStatus.status === 'pending' || protectionPaymentStatus.status === 'overdue') {
+        const id = `protection-${protectionPaymentStatus.month.replace(/\s/g, '-')}`;
+         if (!dismissedIds.includes(id)) {
+            const message = protectionPaymentStatus.status === 'pending'
+                ? `El pago de protección para ${protectionPaymentStatus.month} está pendiente.`
+                : `El pago de protección para ${protectionPaymentStatus.month} está vencido.`;
+            newNotifications.push({
+                id,
+                message,
+                type: 'protection',
+                level: protectionPaymentStatus.status === 'overdue' ? 'error' : 'warning',
+            });
+        }
+    }
+
+    setNotifications(newNotifications);
+
+  }, [loanPaymentStatus, protectionPaymentStatus, currentMember]);
+  
+  const handleDismissNotification = (notificationId: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+
+    if (currentMember) {
+        const dismissedNotifsKey = `dismissedNotifications_${currentMember.id}`;
+        const dismissedIds: string[] = JSON.parse(localStorage.getItem(dismissedNotifsKey) || '[]');
+        if (!dismissedIds.includes(notificationId)) {
+            localStorage.setItem(dismissedNotifsKey, JSON.stringify([...dismissedIds, ...dismissedIds.includes(notificationId) ? [] : [notificationId]]));
+        }
+    }
+  };
+
+  const handleDismissAllNotifications = () => {
+    if (!currentMember) return;
+    const dismissedNotifsKey = `dismissedNotifications_${currentMember.id}`;
+    const dismissedIds: string[] = JSON.parse(localStorage.getItem(dismissedNotifsKey) || '[]');
+    const newDismissedIds = notifications.map(n => n.id);
+    const combinedIds = [...new Set([...dismissedIds, ...newDismissedIds])];
+    localStorage.setItem(dismissedNotifsKey, JSON.stringify(combinedIds));
+    setNotifications([]);
+  };
+
   
   if (!currentMember) {
     const hasMembers = allMembers.length > 0;
     if (authView === 'login') {
-      return <LoginForm onLogin={handleLoginById} onNavigateToRegister={() => setAuthView('register')} allMembers={allMembers} />;
+      return <LoginForm onLogin={handleLoginById} onNavigateToRegister={() => setAuthView('register')} />;
     }
     return <RegistrationForm onRegister={handleRegisterNewMember} onNavigateToLogin={() => setAuthView('login')} hasExistingMembers={hasMembers} />;
   }
@@ -457,15 +672,35 @@ const App: React.FC = () => {
           transactions={lastAddedGroup}
           ratesCache={ratesCache}
           member={currentMember}
-          onNewTransaction={() => setLastAddedGroup(null)}
+          onNewTransaction={() => {
+            setLastAddedGroup(null);
+            setEditingTxGroup(null);
+          }}
+          lastProtectionPaymentDisplayAfterTx={lastProtectionPaymentDisplay}
         />
       );
     }
+    
+    if (editingTxGroup) {
+        return (
+            <TransactionForm 
+                member={currentMember}
+                transactionGroupToEdit={editingTxGroup}
+                onUpdateTransactions={handleUpdateTransactions}
+                onCancelEdit={handleCancelEdit}
+                ratesCache={ratesCache}
+                certificatePendingAmount={adjustedBalances.adjustedCert}
+                loanBalanceUsd={adjustedBalances.adjustedLoan}
+            />
+        );
+    }
+
     return (
       <TransactionForm 
         member={currentMember} 
         onAddTransactions={handleAddTransactions}
         certificatePendingAmount={certificateData.pending}
+        loanBalanceUsd={dashboardData.loanBalanceUsd}
         initialRate={lastUsedRate}
       />
     );
@@ -474,30 +709,128 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
-      <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-                <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            {/* Título de la app para móviles y escritorio */}
+            <div className="flex items-center space-x-2 shrink-0">
+                <svg className="w-7 h-7 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <div>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">Libreta Cooperativa Digital</h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Cooperativa de Servicios Múltiples La Candelaria</p>
-                </div>
+                <h1 className="hidden xs:block text-lg font-bold text-gray-900 dark:text-white leading-tight">Libreta</h1>
             </div>
-            <div className="flex items-center space-x-2">
-                 <div className="text-right">
-                    <p className="font-semibold text-gray-800 dark:text-gray-100">{currentMember.firstName} {currentMember.lastName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">ID: {currentMember.savingsId}</p>
+
+            <div className="flex items-center space-x-1 sm:space-x-3">
+                 {/* Selector de Cuentas Responsivo */}
+                 <div className="relative" ref={switchAccountRef}>
+                    <button 
+                        onClick={() => setIsSwitchAccountOpen(prev => !prev)}
+                        className="flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        aria-haspopup="true"
+                        aria-expanded={isSwitchAccountOpen}
+                    >
+                        <div className="text-right">
+                            <p className="font-semibold text-gray-800 dark:text-gray-100 text-xs sm:text-sm max-w-[100px] sm:max-w-[150px] truncate">
+                                {currentMember.firstName} {currentMember.lastName}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">ID: {currentMember.savingsId}</p>
+                        </div>
+                        <ChevronDownIcon className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isSwitchAccountOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isSwitchAccountOpen && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-30 border border-gray-200 dark:border-gray-700 animate-fade-in" style={{ animationDuration: '0.2s' }}>
+                            <div className="p-2 font-semibold text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">Cambiar de cuenta</div>
+                            <div className="py-1 max-h-60 overflow-y-auto">
+                                {allMembers.filter(m => m.id !== currentMember.id).map(member => (
+                                    <button
+                                        key={member.id}
+                                        onClick={() => {
+                                            handleLoginById(member.id);
+                                            setIsSwitchAccountOpen(false);
+                                        }}
+                                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                                    >
+                                        <div>
+                                            <p className="font-medium">{member.firstName} {member.lastName}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">ID: {member.id}</p>
+                                        </div>
+                                    </button>
+                                ))}
+                                {allMembers.length <= 1 && (
+                                    <div className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No hay otras cuentas.</div>
+                                )}
+                            </div>
+                            <div className="border-t border-gray-200 dark:border-gray-700">
+                                <button
+                                    onClick={() => {
+                                        handleNavigateToRegister();
+                                        setIsSwitchAccountOpen(false);
+                                    }}
+                                    className="w-full text-left flex items-center px-4 py-3 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                                >
+                                    <UserPlusIcon className="w-5 h-5 mr-3" />
+                                    Agregar Nueva Cuenta
+                                </button>
+                            </div>
+                        </div>
+                    )}
                  </div>
-                 <button onClick={() => setIsEditingSetup(true)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Editar Saldos Iniciales">
+
+                 {/* Botones de acción del cabezal */}
+                 <button onClick={() => setIsEditingSetup(true)} className="p-1.5 sm:p-2 rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors" aria-label="Editar Saldos Iniciales">
                     <PencilIcon className="w-5 h-5" />
                  </button>
-                 <button onClick={() => setIsHelpModalOpen(true)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Centro de Ayuda">
-                    <HelpCircleIcon className="w-6 h-6" />
+
+                 <div className="relative" ref={notificationsRef}>
+                    <button 
+                        onClick={() => setIsNotificationsOpen(prev => !prev)}
+                        className="relative p-1.5 sm:p-2 rounded-full text-yellow-500 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors" 
+                        aria-label="Ver notificaciones"
+                    >
+                        <BellIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                        {notifications.length > 0 && (
+                            <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>
+                        )}
+                    </button>
+                    {isNotificationsOpen && (
+                        <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-30 border border-gray-200 dark:border-gray-700 animate-fade-in" style={{ animationDuration: '0.2s' }}>
+                            <div className="p-3 font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700">Notificaciones</div>
+                            <div className="py-1 max-h-80 overflow-y-auto">
+                                {notifications.length > 0 ? (
+                                    notifications.map(notif => (
+                                        <div key={notif.id} className="flex items-start px-3 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <div className="shrink-0 mr-3 mt-1">
+                                                {notif.type === 'loan' && <LoanIcon className={`w-5 h-5 ${notif.level === 'error' ? 'text-red-500' : 'text-yellow-500'}`} />}
+                                                {notif.type === 'protection' && <ProtectionIcon className={`w-5 h-5 ${notif.level === 'error' ? 'text-red-500' : 'text-blue-500'}`} />}
+                                            </div>
+                                            <div className="flex-grow">{notif.message}</div>
+                                            <button onClick={() => handleDismissNotification(notif.id)} className="ml-2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">No tienes notificaciones nuevas.</div>
+                                )}
+                            </div>
+                            {notifications.length > 0 && (
+                                <div className="border-t border-gray-200 dark:border-gray-700">
+                                    <button
+                                        onClick={handleDismissAllNotifications}
+                                        className="w-full text-center px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                                    >
+                                        Marcar todas como leídas
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                 </div>
+
+                 <button onClick={() => setIsHelpModalOpen(true)} className="p-1.5 sm:p-2 rounded-full text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" aria-label="Centro de Ayuda">
+                    <HelpCircleIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                  </button>
-                <button onClick={handleLogout} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" aria-label="Cerrar sesión">
-                    <LogoutIcon className="w-6 h-6" />
+                <button onClick={handleLogout} className="p-1.5 sm:p-2 rounded-full text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" aria-label="Cerrar sesión">
+                    <LogoutIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
             </div>
         </div>
@@ -550,22 +883,25 @@ const App: React.FC = () => {
         
         <div className="flex flex-wrap gap-4 justify-center mb-8">
             <div className="inline-flex rounded-md shadow-sm" role="group">
-                <button onClick={() => setIsWithdrawalModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-sm font-medium text-gray-900 bg-white rounded-l-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors">
-                    <WithdrawIcon className="w-5 h-5 mr-2" /> Retirar Fondos
+                <button onClick={() => setIsWithdrawalModalOpen(true)} className="flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-900 bg-white rounded-l-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors">
+                    <WithdrawIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> Retirar
                 </button>
-                <button onClick={() => setIsHistoryModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border-t border-b -ml-px border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors">
-                    <HistoryIcon className="w-5 h-5 mr-2" /> Ver Historial
+                <button onClick={() => setIsHistoryModalOpen(true)} className="flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-900 bg-white border-t border-b -ml-px border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors">
+                    <HistoryIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> Historial
                 </button>
-                <button onClick={() => setIsEmailCsvModalOpen(true)} disabled={transactions.length === 0} className="flex items-center justify-center px-5 py-2.5 text-sm font-medium text-gray-900 bg-white rounded-r-lg border border-gray-200 -ml-px hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <CsvIcon className="w-5 h-5 mr-2" /> Exportar CSV
+                <button onClick={() => setIsEmailCsvModalOpen(true)} disabled={transactions.length === 0} className="flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-900 bg-white rounded-r-lg border border-gray-200 -ml-px hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <CsvIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> Exportar
                 </button>
             </div>
-            <button onClick={() => setIsNewLoanModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 rounded-lg dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
-                <PlusCircleIcon className="w-5 h-5 mr-2" /> Registrar Nuevo Préstamo
+             <button onClick={() => setIsManageMembersModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-xs sm:text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 rounded-lg dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800">
+                <UsersIcon className="w-5 h-5 mr-2" /> Gestionar Asociados
+            </button>
+            <button onClick={() => setIsNewLoanModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 rounded-lg dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+                <PlusCircleIcon className="w-5 h-5 mr-2" /> Nuevo Préstamo
             </button>
              {!hasSocialProtection && (
-                <button onClick={() => setIsAddProtectionIdModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:ring-4 focus:ring-teal-300 rounded-lg dark:bg-teal-600 dark:hover:bg-teal-700 focus:outline-none dark:focus:ring-teal-800">
-                    <ProtectionPlusIcon className="w-5 h-5 mr-2" /> Agregar ID Protección Social
+                <button onClick={() => setIsAddProtectionIdModalOpen(true)} className="flex items-center justify-center px-5 py-2.5 text-xs sm:text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:ring-4 focus:ring-teal-300 rounded-lg dark:bg-teal-600 dark:hover:bg-teal-700 focus:outline-none dark:focus:ring-teal-800">
+                    <ProtectionPlusIcon className="w-5 h-5 mr-2" /> ID Protección Social
                 </button>
              )}
         </div>
@@ -576,10 +912,11 @@ const App: React.FC = () => {
 
       <NewLoanModal isOpen={isNewLoanModalOpen} onClose={() => setIsNewLoanModalOpen(false)} onSave={handleAddNewLoan} />
       <AddProtectionIdModal isOpen={isAddProtectionIdModalOpen} onClose={() => setIsAddProtectionIdModalOpen(false)} onSave={handleAddProtectionId} />
-      <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setIsWithdrawalModalOpen(false)} onSave={handleWithdrawal} currentBalance={dashboardData.savingsUsd} />
-      {currentMember && <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransaction={handleDeleteTransaction} member={currentMember} />}
+      <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setIsWithdrawalModalOpen(false)} onSave={handleWithdrawal} currentBalance={dashboardData.savingsUsd} initialRate={lastUsedRate}/>
+      {currentMember && <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} transactions={transactions} ratesCache={ratesCache} onDeleteTransactionGroup={handleDeleteTransactionGroup} member={currentMember} onEditTransaction={handleStartEditTransaction} />}
       {currentMember && <EmailCsvModal isOpen={isEmailCsvModalOpen} onClose={() => setIsEmailCsvModalOpen(false)} member={currentMember} transactions={transactions} ratesCache={ratesCache} />}
       <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
+      {currentMember && <ManageMembersModal isOpen={isManageMembersModalOpen} onClose={() => setIsManageMembersModalOpen(false)} members={allMembers} onUpdateMember={handleUpdateMember} onDeleteMember={handleDeleteMember} currentMemberId={currentMember.id} />}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 // Define a name for our cache
-const CACHE_NAME = 'coop-libreta-cache-v1';
+const CACHE_NAME = 'coop-libreta-cache-v2';
 
 // List of files that should be precached for offline use.
 const urlsToCache = [

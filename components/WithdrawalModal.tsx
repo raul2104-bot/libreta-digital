@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CurrencyInput from './CurrencyInput';
 
 interface WithdrawalModalProps {
@@ -6,15 +6,27 @@ interface WithdrawalModalProps {
     onClose: () => void;
     onSave: (withdrawalData: { amountUsd: number; date: string; rate: number; reference: string; description: string }) => void;
     currentBalance: number;
+    initialRate?: number | null;
 }
 
-const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose, onSave, currentBalance }) => {
+const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose, onSave, currentBalance, initialRate }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [rate, setRate] = useState('');
     const [reference, setReference] = useState('');
     const [description, setDescription] = useState('');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setAmount('');
+            setDate(new Date().toISOString().split('T')[0]);
+            setRate(initialRate ? initialRate.toFixed(2) : '');
+            setReference('');
+            setDescription('');
+            setError('');
+        }
+    }, [isOpen, initialRate]);
 
     if (!isOpen) return null;
 

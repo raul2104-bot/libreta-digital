@@ -9,9 +9,10 @@ interface TransactionResultProps {
   ratesCache: Record<string, number>;
   member: Member;
   onNewTransaction: () => void;
+  lastProtectionPaymentDisplayAfterTx?: string;
 }
 
-const TransactionResult: React.FC<TransactionResultProps> = ({ transactions, ratesCache, member, onNewTransaction }) => {
+const TransactionResult: React.FC<TransactionResultProps> = ({ transactions, ratesCache, member, onNewTransaction, lastProtectionPaymentDisplayAfterTx }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -66,7 +67,13 @@ const TransactionResult: React.FC<TransactionResultProps> = ({ transactions, rat
         <p className="text-gray-600 dark:text-gray-300 mb-6">A continuación se muestra el comprobante del depósito realizado.</p>
 
         <div className="flex justify-center my-6">
-            <TransactionReceipt ref={receiptRef} transactions={transactions} ratesCache={ratesCache} member={member} />
+            <TransactionReceipt 
+              ref={receiptRef} 
+              transactions={transactions} 
+              ratesCache={ratesCache} 
+              member={member} 
+              lastProtectionPaymentDisplayAfterTx={lastProtectionPaymentDisplayAfterTx}
+            />
         </div>
 
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">

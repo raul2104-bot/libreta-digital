@@ -10,9 +10,10 @@ interface ShareReceiptModalProps {
     transactions: Transaction[];
     ratesCache: Record<string, number>;
     member: Member;
+    lastProtectionPaymentDisplayAfterTx?: string;
 }
 
-const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({ isOpen, onClose, transactions, ratesCache, member }) => {
+const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({ isOpen, onClose, transactions, ratesCache, member, lastProtectionPaymentDisplayAfterTx }) => {
     const receiptRef = useRef<HTMLDivElement>(null);
     const [isSharing, setIsSharing] = useState(false);
 
@@ -77,7 +78,13 @@ const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({ isOpen, onClose, 
                 <h2 id="share-receipt-modal-title" className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Compartir Comprobante</h2>
                 
                 <div className="flex justify-center my-6">
-                    <TransactionReceipt ref={receiptRef} transactions={transactions} ratesCache={ratesCache} member={member} />
+                    <TransactionReceipt 
+                        ref={receiptRef} 
+                        transactions={transactions} 
+                        ratesCache={ratesCache} 
+                        member={member} 
+                        lastProtectionPaymentDisplayAfterTx={lastProtectionPaymentDisplayAfterTx}
+                    />
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
